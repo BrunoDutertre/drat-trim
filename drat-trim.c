@@ -1040,14 +1040,15 @@ int parse (struct solver* S) {
   int del = 0, fileLine = 0;
   int *buffer, bufferAlloc;
 
-  S->nVars    = 0;
-  S->nClauses = 0;
+  // BD: it's allowed to have an empty cnf with prefix 'p cnf 0 0'
+  S->nVars    = -1;
+  S->nClauses = -1;
   do { tmp = fscanf (S->inputFile, " cnf %i %li \n", &S->nVars, &S->nClauses); // Read the first line
     if (tmp > 0 && tmp != EOF) break; tmp = fscanf (S->inputFile, "%*s\n"); }  // In case a commment line was found
   while (tmp != 2 && tmp != EOF);                                              // Skip it and read next line
   int nZeros = S->nClauses;
 
-  if (!S->nVars && !S->nClauses) {
+  if (S->nVars < 0 && S->nClauses < 0) {
     printf ("\rc ERROR: did not find p cnf line in input file\n"); exit (0); }
 
   printf ("\rc parsing input formula with %i variables and %li clauses\n", S->nVars, S->nClauses);
@@ -1095,13 +1096,18 @@ int parse (struct solver* S) {
           else if (res == 100) del = 1;
           else {
             if (S->warning != NOWARNING) {
-              printf ("\rc WARNING: wrong binary prefix, stop reading proof\n"); break; }
-            if (S->warning == HARDWARNING) exit (HARDWARNING); }
-          S->nReads++; }
-        else {
+              printf ("\rc WARNING: wrong binary prefix, stop reading proof\n"); break;
+	    }
+            if (S->warning == HARDWARNING) exit (HARDWARNING);
+	  }
+          S->nReads++;
+	} else {
           tmp = fscanf (S->proofFile, " d  %i ", &lit);
           if (tmp == EOF) break;
-          del = tmp > 0; } } }
+          del = tmp > 0;
+	}
+      }
+    }
 
     if (!lit) {
       if (!fileSwitchFlag) tmp = fscanf (S->inputFile, " %i ", &lit);  // Read a literal.
@@ -1109,7 +1115,9 @@ int parse (struct solver* S) {
         if (S->binMode) {
           tmp = read_lit (S, &lit); }
         else {
-          tmp = fscanf (S->proofFile, " %i ", &lit); } }
+          tmp = fscanf (S->proofFile, " %i ", &lit);
+	}
+      }
       if (tmp == EOF && !fileSwitchFlag) {
         if (S->warning != NOWARNING) {
           printf ("\rc WARNING: early EOF of the input formula\n");
