@@ -1,5 +1,5 @@
 /************************************************************************************[compress.c]
-Copyright (c) 2020 Marijn Heule, Carnegie Mellon University
+Copyright (c) 2020-2023 Marijn Heule, Carnegie Mellon University
 Last edit: September 5, 2020
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
@@ -32,7 +32,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 long long table_size, table_alloc, *lookup;
 ltype lookup_size, lookup_alloc, *table;
-
 
 int abscompare (const void *a, const void *b) {
 #ifdef LONGTYPE
@@ -134,7 +133,7 @@ int main (int argc, char** argv) {
 
       ltype* start = list; int count = 0;
       while (*list) { count++; list++; }
-      qsort (start, count, sizeof (ltype), abscompare);
+//      qsort (start, count, sizeof (ltype), abscompare);
 
       list = start;
       while (*list) write_lit (output, *list++, 0);

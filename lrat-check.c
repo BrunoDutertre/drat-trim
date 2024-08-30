@@ -57,10 +57,11 @@ ltype *mask, *intro, now, lastIndex;
 int maxBucket;
 
 int *clsList, clsAlloc, clsLast;
-int *table, tableSize, tableAlloc, maskAlloc;
+int *table, tableSize;
+long long int tableAlloc, maskAlloc;
 int *litList, litCount, litAlloc;
 int *inBucket;
-int *topTable, topAlloc;
+int *topTable; long long int topAlloc;
 
 int  getType   (int* list) { return list[1]; }
 int  getIndex  (int* list) { return list[0]; }
@@ -89,8 +90,8 @@ int checkRedundancy (int pivot, int start, int *hints, ltype thisMask, int print
   assert (start <= res);
 
   if (print) printf ("c check redundancy res: %i pivot: %i start: %i\n", res, printLit(pivot), start);
-  if (res != 0) {
-    while (start < res) {
+  if (res != 0) { // if resolvent is non-empty
+    while (start < res) { // check whether all clasues before the hint are tautologies
       if (getClause(start++) != DELETED) {
         int *clause = table + getClause(start-1);
         while (*clause) {
@@ -98,7 +99,7 @@ int checkRedundancy (int pivot, int start, int *hints, ltype thisMask, int print
           if (clit == (pivot^1)) { printf ("c FAILED tautology %i\n", pivot); return FAILED; } } } }
     if (getClause(res) == DELETED) { printf ("c ERROR: using DELETED clause %i\n", res); return FAILED; };
     int flag = 0, *clause = table + getClause(res);
-    while (*clause) {
+    while (*clause) { // find the pivot
       int clit = convertLit (*clause++);
       if (clit == (pivot^1)) { flag = 1; continue; }
       if (mask[clit  ] >= thisMask) continue;       // lit is falsified
@@ -125,7 +126,10 @@ int checkRedundancy (int pivot, int start, int *hints, ltype thisMask, int print
     if (mask[unit^1] == thisMask) printf ("c WARNING hint already satisfied in lemma with index %lli\n", (long long) lastIndex);
     mask[unit^1] = thisMask; }
 
-  if (res == 0) return SUCCESS;
+  if (res == 0) {
+    if (print) printf ("c SUCCESS\n");
+    return SUCCESS;
+  }
   return FAILED; }
 
 int checkClause (int* list, int size, int* hints, int print) {
@@ -154,7 +158,7 @@ int checkClause (int* list, int size, int* hints, int print) {
   int start = intro[pivot ^ 1];
 
   if (RATs == 0)      {
-    if (res == SUCCESS) return FAILED; // No RAT and no conflict is FAILED
+//    if (res == SUCCESS) return FAILED; // No RAT and no conflict is FAILED
     if (print) printf ("c start %i first %i\n", start, -first[0]);
     if (start != 0) return FAILED;
     return SUCCESS; }
@@ -190,9 +194,9 @@ void addClause (int index, int* literals, int size, FILE* drat) {
 
 //  printf ("c index %i\n", index);
   if (index >= topAlloc * BUCKET) {
-    int old = topAlloc;
+    long long int old = topAlloc;
     topAlloc = (topAlloc * 3) >> 1;
-    printf ("c topTable reallocation from %i to %i\n", old, topAlloc);
+    printf ("c topTable reallocation from %lli to %lli\n", old, topAlloc);
     topTable = (int*) realloc (topTable, sizeof(int) * topAlloc);
     if (!topTable) { printf ("c Memory allocation failure of topTable\n"); exit (1); }
     for (int j = old; j < topAlloc; j++) topTable[j] = -1; }
@@ -221,6 +225,7 @@ void addClause (int index, int* literals, int size, FILE* drat) {
   topTable[index/BUCKET] = bucket;
 
   if (tableSize + size >= tableAlloc) {
+//    printf ("c table realloc %lli\n", tableAlloc);
     tableAlloc = (tableAlloc * 3) >> 1;
     table = (int*) realloc (table, sizeof (int) * tableAlloc);
     if (!table) { printf ("c Memory allocation failure of table\n"); exit (1); }
@@ -408,7 +413,7 @@ int main (int argc, char** argv) {
   for (int i = 0; i < maxBucket * BUCKET; i++) clsList[i] = DELETED;
 
   tableSize  = 0;
-  tableAlloc = nCls * 2;
+  tableAlloc = (long long int) nCls * 2;
   table = (int *) malloc (sizeof(int) * tableAlloc);
 
   litAlloc = nVar * 10;
@@ -492,7 +497,7 @@ int main (int argc, char** argv) {
     return_code = 1;
   }
 
-  printf ("c allocated %i %i %i\n", maxBucket, tableAlloc, litAlloc);
+  printf ("c allocated %i %lli %i\n", maxBucket, tableAlloc, litAlloc);
 
   gettimeofday(&finish_time, NULL);
   double secs = (finish_time.tv_sec + 1e-6 * finish_time.tv_usec) -

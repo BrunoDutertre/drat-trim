@@ -1,7 +1,7 @@
 /************************************************************************************[drat-trim.c]
 Copyright (c) 2014 Marijn Heule and Nathan Wetzler, The University of Texas at Austin.
-Copyright (c) 2015-2020 Marijn Heule, Carnegie Mellon University
-Last edit: September 11, 2020
+Copyright (c) 2015-2024 Marijn Heule, Carnegie Mellon University
+Last edit: April 21, 2024
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -1259,7 +1259,7 @@ int parse (struct solver* S) {
         S->proof[S->nStep++] = (((long) (clause - S->DB)) << INFOBITS) + 1; } } }
 
   S->DB = (int *) realloc (S->DB, S->mem_used * sizeof (int));
-  if (S->DB == NULL) { printf("c MEMOUT: reallocation of DB failed\n"); exit (0); }
+  if (S->mem_used && S->DB == NULL) { printf("c MEMOUT: reallocation of DB failed\n"); exit (0); }
 
   for (i = 0; i < BIGINIT; i++) free (hashTable[i]);
   free (hashTable);
@@ -1268,7 +1268,7 @@ int parse (struct solver* S) {
   free (buffer);
 
   int *clause = &S->DB[finalClause];
-  clause[ID] |= ACTIVE; // temporary
+  if (clause) clause[ID] |= ACTIVE; // temporary
 
   printf ("\rc finished parsing");
   if (S->nReads) printf (", read %li bytes from proof file", S->nReads);
@@ -1365,6 +1365,13 @@ void printHelp ( ) {
   printf ("  PROOF       proof file in DRAT format (stdin if no argument)\n\n");
   exit (0); }
 
+int binChar (int c) {
+  // ASCII characters: 10 (LF), 13 (CR), 32 (' '), 45 ('-'), 48 ('0'), 57 ('9'), 99 ('c'), 100 ('d')
+  if ((c != 10) && (c != 13) && (c != 32) && (c != 45) && ((c < 48) || (c > 57)) && (c != 99) && (c != 100))
+    return 1;
+  return 0;
+}
+
 int main (int argc, char** argv) {
   struct solver S;
 
@@ -1436,14 +1443,14 @@ int main (int argc, char** argv) {
        if (S.binMode == 0) {
           c = getc_unlocked (S.proofFile); // check the first character in the file
           if (c == EOF) { S.binMode = 1; continue; }
-          if ((c != 13) && (c != 32) && (c != 45) && ((c < 48) || (c > 57)) && (c != 99) && (c != 100)) {
+          if (binChar (c)) {
              printf ("\rc turning on binary mode checking\n");
              S.binMode = 1; }
           if (c != 99) comment = 0; }
         if (S.binMode == 0) {
           c = getc_unlocked (S.proofFile); // check the second character in the file
           if (c == EOF) { S.binMode = 1; continue; }
-          if ((c != 13) && (c != 32) && (c != 45) && ((c < 48) || (c > 57)) && (c != 99) && (c != 100)) {
+          if (binChar (c)) {
              printf ("\rc turning on binary mode checking\n");
              S.binMode = 1; }
           if (c != 32) comment = 0; }
@@ -1452,7 +1459,7 @@ int main (int argc, char** argv) {
           for (j = 0; j < 10; j++) {
             c = getc_unlocked (S.proofFile);
             if (c == EOF) break;
-            if ((c != 100) && (c != 10) && (c != 13) && (c != 32) && (c != 45) && ((c < 48) || (c > 57)) && (comment && ((c < 65) || (c > 122))))  {
+            if (binChar (c) && (!comment || c < 65 || c > 122)) {
               printf ("\rc turning on binary mode checking\n");
               S.binMode = 1; break; } } }
         fclose (S.proofFile);
